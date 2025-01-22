@@ -1,8 +1,12 @@
+#![allow(dead_code)]
+mod asm;
 mod vm;
+use asm::Assembler;
 use vm::VM;
 
 fn main() {
     let mut vm = VM::new();
+    Assembler::lexer("hello there");
     let program: Vec<i32> = vec![
         0x00000008, // push 8
         0x00000005, // push 5
