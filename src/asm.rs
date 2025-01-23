@@ -1,87 +1,41 @@
-enum State {
-    START,
-    READCHAR,
-    READBLOCK,
-    SKIP,
-    DUMP,
-    COMMENT,
-    END,
+pub fn parse_token(str: Vec<String>) -> Vec<i32> {
+    let mut instructions: Vec<i32> = Vec::new();
+    for s in str {
+        if is_integer(&s) {
+            instructions.push(str_to_int(&s));
+        } else {
+            let instruction: i32 = map_to_optcode(&s);
+            if instruction != -1 {
+                instructions.push(instruction);
+            }
+        }
+    }
+    instructions
 }
 
-pub struct Assembler {
-    asm_str: Box<str>,
-    beg_char: char,
-    end_char: char,
+fn map_to_optcode(str: &str) -> i32 {
+    match str {
+        "nop" => 0x40000000,
+        "hlt" => 0x40000001,
+        "+" => 0x40000002,
+        "-" => 0x40000003,
+        "*" => 0x40000004,
+        "/" => 0x40000005,
+        "%" => 0x40000006,
+        _ => -1,
+    }
 }
 
-impl Assembler {
-    pub fn lexer(&self, str: &str) {
-        let length: usize = str.len();
-        let mut first_counter: i32 = 0;
-        let mut second_counter: i32 = 0;
-        let mut state = State::START;
-        let a: char = 'a';
+fn is_integer(str: &str) -> bool {
+    for c in str.chars() {
+        if !c.is_digit(10) {
+            return false;
+        }
+    }
+    true
+}
 
-        while (first_counter as usize) < length {
-            match state {
-                State::START => {
-                    if Self::is_space(&a) {
-                        state = State::SKIP;
-                    } else if Self::is_grup(&a) {
-                        state = State::READCHAR;
-                    } else if a == '/' {
-                        first_counter += 2;
-                        state = State::READBLOCK;
-                    } else {
-                        state = State::READCHAR;
-                    }
-                }
-                State::READCHAR => {}
-                State::READBLOCK => {}
-                State::SKIP => {
-                    if Self::is_space(&a) {
-                        first_counter += 1;
-                    } else {
-                        state = State::READCHAR;
-                    }
-                }
-                State::DUMP => {}
-                State::COMMENT => {}
-                State::END => {
-                    first_counter = length as i32;
-                }
-            }
-        }
-    }
-
-    fn is_grup(ch: &char) -> bool {
-        match ch {
-            '[' | ']' => true,
-            _ => false,
-        }
-    }
-    fn is_space(ch: &char) -> bool {
-        match ch {
-            '\n' => true,
-            '\r' => true,
-            '\t' => true,
-            ' ' => true,
-            _ => false,
-        }
-    }
-    fn is_special(&mut self, ch: &char) -> bool {
-        self.beg_char = *ch;
-        match ch {
-            '"' => {
-                self.end_char = '"';
-                true
-            }
-            '(' => {
-                self.end_char = ')';
-                true
-            }
-            ')' => true,
-            _ => false,
-        }
-    }
+fn str_to_int(str: &str) -> i32 {
+    let n: i32 = str.parse().unwrap();
+    n
 }

@@ -103,6 +103,17 @@ impl VM {
                 self.sp -= 1;
                 println!("tos: {}", self.memory[self.sp as usize]);
             }
+            6 => {
+                // mod
+                println!(
+                    "mod {} % {}",
+                    self.memory[(self.sp - 1) as usize],
+                    self.memory[self.sp as usize]
+                );
+                self.memory[self.sp as usize - 1] %= self.memory[self.sp as usize];
+                self.sp -= 1;
+                println!("tos: {}", self.memory[self.sp as usize]);
+            }
             _ => {
                 println!("unknown instruction");
             }
