@@ -1,7 +1,7 @@
 18 5
          2
-+
-3 * 7
-/
--
+add
+3 mul 7
+div
+sub
    hlt

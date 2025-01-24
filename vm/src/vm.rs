@@ -1,32 +1,39 @@
 pub struct VM {
-    pc: i32,
-    sp: i32,
-    pub memory: Vec<i32>,
-    typ: i32,
-    dat: i32,
+    pc: u32,
+    sp: u32,
+    pub memory: Vec<u32>,
+    typ: u32,
+    dat: u32,
     pub running: i8,
 }
+
+// headers
+// 0x0 -> positive   00
+// 0x4 -> optcode    01
+// 0x8 -> negative   10
+// 0xc -> label      11
+//
 
 impl VM {
     pub fn new() -> Self {
         VM {
             pc: 100,
             sp: 0,
-            memory: vec![0; 1_000_000],
+            memory: vec![0; 100_000],
             typ: 0,
             dat: 0,
             running: 1,
         }
     }
 
-    fn get_type(instruction: i32) -> i32 {
-        let mut val: i32 = 0xc0000000u32 as i32;
+    fn get_type(instruction: u32) -> u32 {
+        let mut val: u32 = 0xc0000000;
         val = (val & instruction) >> 30;
         val
     }
 
-    fn get_data(instruction: i32) -> i32 {
-        let mut val: i32 = 0x3fffffff;
+    fn get_data(instruction: u32) -> u32 {
+        let mut val: u32 = 0x3fffffff;
         val = val & instruction;
         val
     }
@@ -129,7 +136,7 @@ impl VM {
         }
     }
 
-    pub fn load_program(&mut self, prog: Vec<i32>) {
+    pub fn load_program(&mut self, prog: Vec<u32>) {
         for i in 0..prog.len() {
             self.memory[(self.pc as usize + i) as usize] = prog[i];
         }
