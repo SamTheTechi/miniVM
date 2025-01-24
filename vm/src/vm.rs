@@ -1,10 +1,17 @@
+use std::collections::HashMap;
+use std::io;
+
 pub struct VM {
-    pc: u32,
-    sp: u32,
-    pub memory: Vec<u32>,
+    memory: Vec<u32>,
+    stack: Vec<i32>,
+    labels: HashMap<i32, i32>,
+    // gernal purpose registers
+    regis: Vec<i32>,
     typ: u32,
     dat: u32,
-    pub running: i8,
+    pc: i32,
+    sp: usize,
+    rning: bool,
 }
 
 // headers
@@ -17,41 +24,54 @@ pub struct VM {
 impl VM {
     pub fn new() -> Self {
         VM {
-            pc: 100,
-            sp: 0,
-            memory: vec![0; 100_000],
-            typ: 0,
+            memory: Vec::new(),
+            stack: vec![0; 100],
+            labels: HashMap::new(),
+            regis: vec![0; 10],
+            typ: 1,
             dat: 0,
-            running: 1,
+            pc: 0,
+            sp: 0,
+            rning: true,
         }
     }
 
     fn get_type(instruction: u32) -> u32 {
-        let mut val: u32 = 0xc0000000;
-        val = (val & instruction) >> 30;
-        val
+        (instruction & 0xc0000000) >> 30
     }
 
     fn get_data(instruction: u32) -> u32 {
-        let mut val: u32 = 0x3fffffff;
-        val = val & instruction;
-        val
+        instruction & 0x3fffffff
     }
 
-    fn fatch(&mut self) {
-        self.pc = self.pc + 1;
+    fn fetch(&mut self) {
+        self.pc += 1;
     }
+
     fn decode(&mut self) {
         self.typ = Self::get_type(self.memory[self.pc as usize]);
         self.dat = Self::get_data(self.memory[self.pc as usize]);
     }
+
     fn execute(&mut self) {
-        if self.typ == 0 || self.typ == 2 {
-            self.sp += 1;
-            self.memory[self.sp as usize] = self.dat;
-            println!("push: {}", self.memory[self.sp as usize])
-        } else {
-            self.instruction_set();
+        match self.typ {
+            0x0 => {
+                self.sp += 1;
+                self.stack[self.sp] = self.dat as i32;
+            }
+            0x1 => {
+                self.instruction_set();
+            }
+            0x2 => {
+                self.sp += 1;
+                self.stack[self.sp] = -(self.dat as i32);
+            }
+            0x3 => {
+                println!("{:?}", self.labels.get(&(self.dat as i32)).unwrap())
+            }
+            _ => {
+                self.rning = false;
+            }
         }
     }
 
@@ -59,78 +79,221 @@ impl VM {
         match self.dat {
             0 => {
                 // nop
-                println!("nop instruction");
             }
             1 => {
-                // hlt
-                println!("hlt");
-                self.running = 0;
+                // mov
+                if self.memory.len() as i32 > (self.pc + 2) {
+                    let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    let source = (self.memory[(self.pc + 2) as usize] - 0x40000022) as usize;
+                    self.regis[destination] = self.regis[source];
+                    self.pc += 2;
+                }
             }
             2 => {
-                // add
-                println!(
-                    "add {} + {}",
-                    self.memory[(self.sp - 1) as usize],
-                    self.memory[self.sp as usize]
-                );
-                self.memory[self.sp as usize - 1] += self.memory[self.sp as usize];
-                self.sp -= 1;
-                println!("tos: {}", self.memory[self.sp as usize]);
+                // lod
+                if self.memory.len() as i32 > (self.pc + 2) {
+                    let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    self.regis[destination] = self.memory[(self.pc + 2) as usize] as i32;
+                    self.pc += 2;
+                }
             }
             3 => {
-                // sub
-                println!(
-                    "sub {} - {}",
-                    self.memory[(self.sp - 1) as usize],
-                    self.memory[self.sp as usize]
-                );
-                self.memory[self.sp as usize - 1] -= self.memory[self.sp as usize];
-                self.sp -= 1;
-                println!("tos: {}", self.memory[self.sp as usize]);
+                // str
+                if self.memory.len() as i32 > (self.pc + 1) {
+                    let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    self.stack[self.sp] = self.regis[destination];
+                    self.pc += 1;
+                    self.sp += 1;
+                }
             }
             4 => {
-                // mul
-                println!(
-                    "mul {} * {}",
-                    self.memory[(self.sp - 1) as usize],
-                    self.memory[self.sp as usize]
-                );
-                self.memory[self.sp as usize - 1] *= self.memory[self.sp as usize];
-                self.sp -= 1;
-                println!("tos: {}", self.memory[self.sp as usize]);
+                // jmp
             }
             5 => {
-                // div
-                println!(
-                    "div {} / {}",
-                    self.memory[(self.sp - 1) as usize],
-                    self.memory[self.sp as usize]
-                );
-                self.memory[self.sp as usize - 1] /= self.memory[self.sp as usize];
-                self.sp -= 1;
-                println!("tos: {}", self.memory[self.sp as usize]);
+                // jml
             }
             6 => {
+                // jmg
+            }
+            7 => {
+                // jme
+            }
+            8 => {
+                // cmp
+                if self.memory.len() as i32 > (self.pc + 2) {
+                    let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    let source = (self.memory[(self.pc + 2) as usize] - 0x40000022) as usize;
+                    self.regis[10] = 0;
+                    self.regis[9] = 0;
+                    if self.regis[destination] == self.regis[source] {
+                        self.regis[10] = 1;
+                    } else if self.regis[destination] > self.regis[source] {
+                        self.regis[9] = 1;
+                    }
+                    self.pc += 2;
+                }
+            }
+            9 => {
+                // clr
+                if self.memory.len() as i32 > (self.pc + 1) {
+                    let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    self.regis[destination] = 0;
+                    self.pc += 1;
+                }
+            }
+            10 => {
+                // cal
+            }
+            11 => {
+                // ret
+            }
+            12 => {
+                // swp
+                if self.memory.len() as i32 > (self.pc + 2) {
+                    let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    let source = (self.memory[(self.pc + 2) as usize] - 0x40000022) as usize;
+                    self.regis[source] = self.regis[source] + self.regis[destination];
+                    self.regis[destination] = self.regis[source] + self.regis[destination];
+                    self.regis[source] = self.regis[source] + self.regis[destination];
+                    self.pc += 2;
+                }
+            }
+            13 => {
+                // out
+                if self.memory.len() as i32 > (self.pc + 1) {
+                    let source = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    println!("{}", self.regis[source]);
+                    self.pc += 1;
+                }
+            }
+            14 => {
+                // sin
+                if self.memory.len() as i32 > (self.pc + 1) {
+                    let source = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    let mut input = String::new();
+                    io::stdin()
+                        .read_line(&mut input)
+                        .expect("something went wrong");
+                    self.regis[source] = input.trim().parse().unwrap();
+                    self.pc += 1;
+                }
+            }
+            15 => {
+                // psh
+                if self.memory.len() as i32 > (self.pc + 1) {
+                    let source = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    self.sp += 1;
+                    self.stack[self.sp] = self.regis[source];
+                    self.pc += 1;
+                }
+            }
+            16 => {
+                // pop
+                if self.memory.len() as i32 > (self.pc + 1) {
+                    let source = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    self.regis[source] = self.stack[self.sp];
+                    self.sp -= 1;
+                    self.pc += 1;
+                }
+            }
+            17 => {
+                // pek
+                println!("{}", self.stack[self.sp]);
+            }
+            18 => {
+                // hlt
+                self.rning = false;
+            }
+            19 => {
+                // add
+                if self.memory.len() as i32 > (self.pc + 2) {
+                    let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    let source = (self.memory[(self.pc + 2) as usize] - 0x40000022) as usize;
+                    self.regis[source] += self.regis[destination];
+                    self.pc += 2;
+                }
+            }
+            20 => {
+                // sub
+                if self.memory.len() as i32 > (self.pc + 2) {
+                    let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    let source = (self.memory[(self.pc + 2) as usize] - 0x40000022) as usize;
+                    self.regis[source] -= self.regis[destination];
+                    self.pc += 2;
+                }
+            }
+            21 => {
+                // mul
+                if self.memory.len() as i32 > (self.pc + 2) {
+                    let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    let source = (self.memory[(self.pc + 2) as usize] - 0x40000022) as usize;
+                    self.regis[source] *= self.regis[destination];
+                    self.pc += 2;
+                }
+            }
+            22 => {
+                // div
+                if self.memory.len() as i32 > (self.pc + 2) {
+                    let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    let source = (self.memory[(self.pc + 2) as usize] - 0x40000022) as usize;
+                    self.regis[source] /= self.regis[destination];
+                    self.pc += 2;
+                }
+            }
+            23 => {
                 // mod
-                println!(
-                    "mod {} % {}",
-                    self.memory[(self.sp - 1) as usize],
-                    self.memory[self.sp as usize]
-                );
-                self.memory[self.sp as usize - 1] %= self.memory[self.sp as usize];
-                self.sp -= 1;
-                println!("tos: {}", self.memory[self.sp as usize]);
+                if self.memory.len() as i32 > (self.pc + 2) {
+                    let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    let source = (self.memory[(self.pc + 2) as usize] - 0x40000022) as usize;
+                    self.regis[source] %= self.regis[destination];
+                    self.pc += 2;
+                }
             }
-            _ => {
-                println!("unknown instruction");
+            24 => {
+                // inc
+                if self.memory.len() as i32 > (self.pc + 1) {
+                    let source = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    self.regis[source] += 1;
+                    self.pc += 1;
+                }
             }
+            25 => {
+                // dec
+                if self.memory.len() as i32 > (self.pc + 1) {
+                    let source = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
+                    self.regis[source] -= 1;
+                    self.pc += 1;
+                }
+            }
+            26 => {
+                // sqt
+            }
+            27 => {
+                // and
+            }
+            28 => {
+                // sor
+            }
+            29 => {
+                // xor
+            }
+            30 => {
+                // not
+            }
+            31 => {
+                // shl
+            }
+            32 => {
+                // shr
+            }
+            _ => {}
         }
     }
 
     pub fn run(&mut self) {
         self.pc -= 1;
-        while self.running == 1 {
-            self.fatch();
+        while self.rning == true {
+            self.fetch();
             self.decode();
             self.execute();
         }
@@ -138,7 +301,12 @@ impl VM {
 
     pub fn load_program(&mut self, prog: Vec<u32>) {
         for i in 0..prog.len() {
-            self.memory[(self.pc as usize + i) as usize] = prog[i];
+            if Self::get_type(prog[i]) == 3 {
+                self.labels
+                    .entry(Self::get_data(prog[i]) as i32)
+                    .or_insert(i as i32);
+            }
+            self.memory.push(prog[i]);
         }
     }
 }

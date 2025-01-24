@@ -23,7 +23,6 @@ fn main() {
         }
     };
     let content = fs::read_to_string(&input_path).expect("Something went wrong");
-    println!("{:?}", content);
     let token = tokeniser.lexer(content);
     println!("{:?}", token);
     let prog = parser::parse_token(token);
@@ -39,7 +38,6 @@ fn main() {
     for &num in &prog {
         byte_data.extend_from_slice(&num.to_ne_bytes());
     }
-    println!("{byte_data:?}");
 
     let _ = fs::write(output_path, byte_data);
 }
