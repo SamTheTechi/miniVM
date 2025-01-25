@@ -24,108 +24,115 @@ impl Lexer {
 
     pub fn lexer(&mut self, string: String) -> Vec<String> {
         let str: Vec<char> = string.chars().collect();
-        let mut first_counter: usize = 0;
-        let mut second_counter: usize = 0;
-        let mut balane_counter: usize = 0;
+        let mut counter: usize = 0;
+        let mut balane_counter: isize = 0;
         let length = str.len();
         let mut lexeme: Vec<char> = Vec::new();
         let mut state = State::START;
 
-        while first_counter < length {
+        while counter < length {
             match state {
                 State::START => {
-                    if Self::is_space(&str[first_counter]) {
+                    if Self::is_space(&str[counter]) {
                         state = State::SKIP;
-                    } else if self.is_grup(&str[first_counter]) {
-                        if str[first_counter] == '"' {
-                            lexeme[second_counter] = str[first_counter];
-                            first_counter += 1;
-                            second_counter += 1;
+                    } else if self.is_grup(&str[counter]) {
+                        if str[counter] == self.beg_char {
+                            balane_counter = 1;
+                            lexeme.push(str[counter]);
+                            counter += 1;
+                            state = State::READBLOCK;
+                        } else {
+                            lexeme.push(str[counter]);
+                            counter += 1;
+                            state = State::READCHAR;
                         }
-                        state = State::READBLOCK;
-                    } else if first_counter + 1 < length
-                        && str[first_counter] == '/'
-                        && str[first_counter + 1] == '/'
+                    } else if counter + 1 < length && str[counter] == '/' && str[counter + 1] == '/'
                     {
-                        first_counter += 2;
+                        counter += 2;
                         state = State::COMMENT;
                     } else {
                         state = State::READCHAR;
                     }
                 }
                 State::READCHAR => {
-                    if Self::is_space(&str[first_counter]) {
+                    if Self::is_space(&str[counter]) {
                         state = State::DUMP;
-                    } else if self.is_grup(&str[first_counter]) {
-                        if str[first_counter] == '"' {
-                            lexeme[second_counter] = str[first_counter];
-                            first_counter += 1;
-                            second_counter += 1;
+                    } else if self.is_grup(&str[counter]) {
+                        if str[counter] == self.beg_char {
+                            balane_counter = 1;
+                            lexeme.push(str[counter]);
+                            counter += 1;
+                            state = State::READBLOCK;
                         }
-                    } else if first_counter + 1 < length
-                        && str[first_counter] == '/'
-                        && str[first_counter + 1] == '/'
+                    } else if counter + 1 < length && str[counter] == '/' && str[counter + 1] == '/'
                     {
-                        first_counter += 2;
+                        counter += 2;
                         state = State::COMMENT;
-                    } else if first_counter + 1 < length && str[first_counter] == ';' {
-                        first_counter += 1;
+                    } else if counter + 1 < length && str[counter] == ';' {
+                        counter += 1;
                         state = State::COMMENT;
+                    } else if str[counter] == ':' || str[counter] == ',' {
+                        counter += 1;
                     } else {
-                        lexeme.push(str[first_counter]);
-                        first_counter += 1;
-                        second_counter += 1;
+                        lexeme.push(str[counter]);
+                        counter += 1;
                     }
                 }
                 State::READBLOCK => {
-                    if str[first_counter] == self.beg_char && str[first_counter] != '"' {
+                    if str[counter] == self.beg_char && str[counter] != '"' {
                         balane_counter += 1;
-                        lexeme.push(str[first_counter]);
-                        first_counter += 1;
-                        second_counter += 1;
-                    } else if str[first_counter] == self.end_char {
+                        lexeme.push(str[counter]);
+                        counter += 1;
+                    } else if str[counter] == self.end_char {
                         balane_counter -= 1;
-                        lexeme.push(str[first_counter]);
-                        first_counter += 1;
-                        second_counter += 1;
+                        lexeme.push(str[counter]);
+                        counter += 1;
                         if balane_counter <= 0 {
                             state = State::DUMP;
                         }
-                    } else if self.end_char == '"' && str[first_counter] == '\\' {
-                        first_counter += 2;
+                    } else if self.beg_char == '"' {
+                        if str[counter] == '"' && balane_counter == 0 {
+                            lexeme.push(str[counter]);
+                            counter += 1;
+                            state = State::DUMP;
+                        } else if str[counter] == '\\' && counter + 1 < length {
+                            lexeme.push(str[counter]);
+                            lexeme.push(str[counter + 1]);
+                            counter += 2;
+                        } else {
+                            lexeme.push(str[counter]);
+                            counter += 1;
+                        }
                     } else {
-                        lexeme.push(str[first_counter]);
-                        first_counter += 1;
-                        second_counter += 1;
+                        lexeme.push(str[counter]);
+                        counter += 1;
                     }
                 }
                 State::SKIP => {
-                    if Self::is_space(&str[first_counter]) {
-                        first_counter += 1;
+                    if Self::is_space(&str[counter]) {
+                        counter += 1;
                     } else {
                         state = State::READCHAR;
                     }
                 }
                 State::DUMP => {
-                    if second_counter > 0 {
+                    if !lexeme.is_empty() {
                         self.asm_str.push(lexeme.iter().collect());
                         lexeme.clear();
-                        second_counter = 0;
                     }
                     state = State::START;
                 }
                 State::COMMENT => {
-                    if str[first_counter] != '\n' {
-                        first_counter += 1;
+                    if str[counter] != '\n' {
+                        counter += 1;
                     } else {
-                        first_counter += 1;
+                        counter += 1;
                         state = State::READCHAR;
                     }
                 }
             }
         }
-        if second_counter > 0 {
-            lexeme[second_counter] = '\0';
+        if !lexeme.is_empty() {
             self.asm_str.push(lexeme.iter().collect());
         }
         self.asm_str.drain(..).collect()
@@ -147,12 +154,12 @@ impl Lexer {
                 self.end_char = '"';
                 true
             }
-            '(' => {
+            '[' => {
                 self.beg_char = *ch;
-                self.end_char = ')';
+                self.end_char = ']';
                 true
             }
-            ')' => true,
+            ']' => true,
             _ => false,
         }
     }

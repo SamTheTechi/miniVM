@@ -46,6 +46,6 @@ fn main() {
             }
         })
         .collect();
-    vm.load_program(_prog);
+    vm.load_program(_progr);
     vm.run();
 }

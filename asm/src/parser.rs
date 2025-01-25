@@ -1,11 +1,25 @@
-pub fn parse_token(str: Vec<String>) -> Vec<i32> {
-    let mut instructions: Vec<i32> = Vec::new();
+use std::collections::HashMap;
+
+pub fn parse_token(str: Vec<String>) -> Vec<u32> {
+    let mut instructions: Vec<u32> = Vec::new();
+    let mut label: HashMap<String, u32> = HashMap::new();
+    let mut current_address = 0xc0000001 as u32;
+    label.insert("_start".to_string(), 0xc0000000);
+
     for s in str {
         if is_integer(&s) {
-            instructions.push(str_to_int(&s));
+            instructions.push(str_to_int(&s[1..]));
+        } else if is_label(&s) {
+            if let Some(&addr) = label.get(&s) {
+                instructions.push(addr);
+            } else {
+                label.insert(s, current_address);
+                instructions.push(current_address);
+                current_address += 1;
+            }
         } else {
-            let instruction: i32 = map_to_optcode(&s);
-            if instruction != -1 {
+            let instruction: u32 = map_to_optcode(&s);
+            if instruction != 0x4fffffff {
                 instructions.push(instruction);
             }
         }
@@ -13,7 +27,7 @@ pub fn parse_token(str: Vec<String>) -> Vec<i32> {
     instructions
 }
 
-fn map_to_optcode(str: &str) -> i32 {
+fn map_to_optcode(str: &str) -> u32 {
     match str {
         "nop" => 0x40000000,
         "mov" => 0x40000001,
@@ -23,56 +37,63 @@ fn map_to_optcode(str: &str) -> i32 {
         "jml" => 0x40000005,
         "jmg" => 0x40000006,
         "jme" => 0x40000007,
-        "cmp" => 0x40000008,
-        "clr" => 0x40000009,
-        "cal" => 0x4000000a,
-        "ret" => 0x4000000b,
-        "swp" => 0x4000000c,
-        "out" => 0x4000000d,
-        "sin" => 0x4000000e,
-        "psh" => 0x4000000f,
-        "pop" => 0x40000010,
-        "pek" => 0x40000011,
-        "hlt" => 0x40000012,
-        "add" => 0x40000013,
-        "sub" => 0x40000014,
-        "mul" => 0x40000015,
-        "div" => 0x40000016,
-        "mod" => 0x40000017,
-        "inc" => 0x40000018,
-        "dec" => 0x40000019,
-        "sqt" => 0x4000001a,
-        "and" => 0x4000001b,
-        "sor" => 0x4000001c,
-        "xor" => 0x4000001d,
-        "not" => 0x4000001e,
-        "shl" => 0x4000001f,
-        "shr" => 0x40000020,
+        "jmz" => 0x40000008,
+        "cmp" => 0x40000009,
+        "clr" => 0x4000000a,
+        "cal" => 0x4000000b,
+        "ret" => 0x4000000c,
+        "swp" => 0x4000000d,
+        "out" => 0x4000000e,
+        "sin" => 0x4000000f,
+        "nli" => 0x40000010,
+        "psh" => 0x40000011,
+        "pop" => 0x40000012,
+        "pek" => 0x40000013,
+        "hlt" => 0x40000014,
+        "add" => 0x40000015,
+        "sub" => 0x40000016,
+        "mul" => 0x40000017,
+        "div" => 0x40000018,
+        "mod" => 0x40000019,
+        "inc" => 0x4000001a,
+        "dec" => 0x4000001b,
+        "sqt" => 0x4000001c,
+        "and" => 0x4000001d,
+        "sor" => 0x4000001e,
+        "xor" => 0x4000001f,
+        "not" => 0x40000020,
+        "shl" => 0x40000021,
+        "shr" => 0x40000022,
         // register
-        "r0" => 0x40000022,
-        "r1" => 0x40000023,
-        "r2" => 0x40000024,
-        "r3" => 0x40000025,
-        "r4" => 0x40000026,
-        "r5" => 0x40000027,
-        "r6" => 0x40000028,
-        "r7" => 0x40000029,
-        "rf" => 0x4000002a,
-        "rz" => 0x4000002b,
-        _ => -1,
+        "r0" => 0x40000025,
+        "r1" => 0x40000026,
+        "r2" => 0x40000027,
+        "r3" => 0x40000028,
+        "r4" => 0x40000029,
+        "r5" => 0x4000002a,
+        "r6" => 0x4000002b,
+        "r7" => 0x4000002c,
+        "rf" => 0x4000002d,
+        "rz" => 0x4000002e,
+        _ => 0x4fffffff,
     }
 }
 
 fn is_integer(str: &str) -> bool {
-    for c in str.chars() {
-        if !c.is_numeric() {
-            return false;
-        }
+    if str.chars().nth(0).unwrap() == '#' {
+        return true;
     }
-    true
+    false
 }
 
-fn str_to_int(str: &str) -> i32 {
-    str.parse::<i32>()
+fn is_label(str: &str) -> bool {
+    if str.chars().nth(0).unwrap() == '_' {
+        return true;
+    }
+    false
+}
+
+fn str_to_int(str: &str) -> u32 {
+    str.parse::<u32>()
         .unwrap_or_else(|_| panic!("invalid integer formant"))
 }
