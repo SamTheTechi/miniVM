@@ -27,8 +27,6 @@ fn main() {
     println!("{:?}", token);
     let prog = parser::parse_token(token);
 
-    println!("{prog:?}");
-
     match fs::File::create(&output_path) {
         Ok(_) => println!("compilation success full! {}", output_path),
         Err(e) => eprintln!("File to compilation {}:{}", output_path, e),

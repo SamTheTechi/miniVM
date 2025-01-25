@@ -68,6 +68,9 @@ impl Lexer {
                     {
                         first_counter += 2;
                         state = State::COMMENT;
+                    } else if first_counter + 1 < length && str[first_counter] == ';' {
+                        first_counter += 1;
+                        state = State::COMMENT;
                     } else {
                         lexeme.push(str[first_counter]);
                         first_counter += 1;

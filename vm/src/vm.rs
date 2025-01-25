@@ -55,20 +55,10 @@ impl VM {
 
     fn execute(&mut self) {
         match self.typ {
-            0x0 => {
-                self.sp += 1;
-                self.stack[self.sp] = self.dat as i32;
-            }
             0x1 => {
                 self.instruction_set();
             }
-            0x2 => {
-                self.sp += 1;
-                self.stack[self.sp] = -(self.dat as i32);
-            }
-            0x3 => {
-                println!("{:?}", self.labels.get(&(self.dat as i32)).unwrap())
-            }
+            0x3 => {}
             _ => {
                 self.rning = false;
             }
@@ -108,27 +98,55 @@ impl VM {
             }
             4 => {
                 // jmp
+                if self.memory.len() as i32 > (self.pc + 1) {
+                    let key = Self::get_data(self.memory[(self.pc + 1) as usize]);
+                    self.pc = *self.labels.get(&(key as i32)).unwrap();
+                }
             }
             5 => {
                 // jml
+                if self.memory.len() as i32 > (self.pc + 1) {
+                    if self.regis[8] == 0 {
+                        let key = Self::get_data(self.memory[(self.pc + 1) as usize]);
+                        self.pc = *self.labels.get(&(key as i32)).unwrap();
+                    } else {
+                        self.pc += 1;
+                    }
+                }
             }
             6 => {
                 // jmg
+                if self.memory.len() as i32 > (self.pc + 1) {
+                    if self.regis[8] == 1 {
+                        let key = Self::get_data(self.memory[(self.pc + 1) as usize]);
+                        self.pc = *self.labels.get(&(key as i32)).unwrap();
+                    } else {
+                        self.pc += 1;
+                    }
+                }
             }
             7 => {
                 // jme
+                if self.memory.len() as i32 > (self.pc + 1) {
+                    if self.regis[9] == 1 {
+                        let key = Self::get_data(self.memory[(self.pc + 1) as usize]);
+                        self.pc = *self.labels.get(&(key as i32)).unwrap();
+                    } else {
+                        self.pc += 1;
+                    }
+                }
             }
             8 => {
                 // cmp
                 if self.memory.len() as i32 > (self.pc + 2) {
                     let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
                     let source = (self.memory[(self.pc + 2) as usize] - 0x40000022) as usize;
-                    self.regis[10] = 0;
                     self.regis[9] = 0;
+                    self.regis[8] = 0;
                     if self.regis[destination] == self.regis[source] {
-                        self.regis[10] = 1;
-                    } else if self.regis[destination] > self.regis[source] {
                         self.regis[9] = 1;
+                    } else if self.regis[destination] > self.regis[source] {
+                        self.regis[8] = 1;
                     }
                     self.pc += 2;
                 }
@@ -182,7 +200,6 @@ impl VM {
                 // psh
                 if self.memory.len() as i32 > (self.pc + 1) {
                     let source = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
-                    self.sp += 1;
                     self.stack[self.sp] = self.regis[source];
                     self.pc += 1;
                 }
@@ -209,7 +226,7 @@ impl VM {
                 if self.memory.len() as i32 > (self.pc + 2) {
                     let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
                     let source = (self.memory[(self.pc + 2) as usize] - 0x40000022) as usize;
-                    self.regis[source] += self.regis[destination];
+                    self.regis[destination] += self.regis[source];
                     self.pc += 2;
                 }
             }
@@ -218,7 +235,7 @@ impl VM {
                 if self.memory.len() as i32 > (self.pc + 2) {
                     let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
                     let source = (self.memory[(self.pc + 2) as usize] - 0x40000022) as usize;
-                    self.regis[source] -= self.regis[destination];
+                    self.regis[destination] -= self.regis[source];
                     self.pc += 2;
                 }
             }
@@ -227,7 +244,7 @@ impl VM {
                 if self.memory.len() as i32 > (self.pc + 2) {
                     let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
                     let source = (self.memory[(self.pc + 2) as usize] - 0x40000022) as usize;
-                    self.regis[source] *= self.regis[destination];
+                    self.regis[destination] *= self.regis[source];
                     self.pc += 2;
                 }
             }
@@ -236,7 +253,7 @@ impl VM {
                 if self.memory.len() as i32 > (self.pc + 2) {
                     let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
                     let source = (self.memory[(self.pc + 2) as usize] - 0x40000022) as usize;
-                    self.regis[source] /= self.regis[destination];
+                    self.regis[destination] /= self.regis[source];
                     self.pc += 2;
                 }
             }
@@ -245,7 +262,7 @@ impl VM {
                 if self.memory.len() as i32 > (self.pc + 2) {
                     let destination = (self.memory[(self.pc + 1) as usize] - 0x40000022) as usize;
                     let source = (self.memory[(self.pc + 2) as usize] - 0x40000022) as usize;
-                    self.regis[source] %= self.regis[destination];
+                    self.regis[destination] %= self.regis[source];
                     self.pc += 2;
                 }
             }
@@ -298,15 +315,17 @@ impl VM {
             self.execute();
         }
     }
-
     pub fn load_program(&mut self, prog: Vec<u32>) {
-        for i in 0..prog.len() {
-            if Self::get_type(prog[i]) == 3 {
+        for (i, &instruction) in prog.iter().enumerate() {
+            if Self::get_type(instruction) == 3 {
                 self.labels
-                    .entry(Self::get_data(prog[i]) as i32)
+                    .entry(Self::get_data(instruction) as i32)
                     .or_insert(i as i32);
+                if (Self::get_data(instruction) as i32) == 0 {
+                    self.pc = (i + 1) as i32;
+                }
             }
-            self.memory.push(prog[i]);
+            self.memory.push(instruction);
         }
     }
 }
