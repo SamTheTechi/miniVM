@@ -6,6 +6,7 @@ pub struct VM {
     memory: Vec<u32>,
     stack: Vec<i32>,
     labels: HashMap<i32, i32>,
+    heap: Vec<u8>,
     // gernal purpose registers
     regis: Vec<i32>,
     typ: u32,
@@ -28,6 +29,7 @@ impl VM {
             memory: Vec::new(),
             stack: vec![0; 100],
             labels: HashMap::new(),
+            heap: Vec::new(),
             regis: vec![0; 10],
             typ: 1,
             dat: 0,

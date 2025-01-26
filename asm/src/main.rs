@@ -1,10 +1,12 @@
 mod lexer;
 mod parser;
+mod translater;
 use lexer::Lexer;
 use std::env;
 use std::fs;
 use std::path;
 use std::process;
+use translater::translater;
 
 fn main() {
     let mut tokeniser = Lexer::new();
@@ -24,14 +26,15 @@ fn main() {
     };
     let content = fs::read_to_string(&input_path).expect("Something went wrong");
     let token = tokeniser.lexer(content);
-    let prog = parser::parse_token(token);
+    println!("{:?}", token);
+    let (prog, heap) = parser::parse_token(token);
+    println!("{:?}", prog);
+    println!("{:?}", heap);
     match fs::File::create(&output_path) {
-        Ok(_) => println!("compilation success full! {}", output_path),
+        Ok(_) => {}
         Err(e) => eprintln!("File to compilation {}:{}", output_path, e),
     }
-    let mut byte_data = Vec::new();
-    for &num in &prog {
-        byte_data.extend_from_slice(&num.to_ne_bytes());
-    }
+    let byte_data = translater(prog);
+
     let _ = fs::write(output_path, byte_data);
 }

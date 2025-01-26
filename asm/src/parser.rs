@@ -1,14 +1,21 @@
 use std::collections::HashMap;
 
-pub fn parse_token(str: Vec<String>) -> Vec<u32> {
+pub fn parse_token(str: Vec<String>) -> (Vec<u32>, Vec<u8>) {
     let mut instructions: Vec<u32> = Vec::new();
+    let mut string_pool: Vec<u8> = vec![0];
     let mut label: HashMap<String, u32> = HashMap::new();
     let mut current_address = 0xc0000001 as u32;
     label.insert("_start".to_string(), 0xc0000000);
 
     for s in str {
         if is_integer(&s) {
-            instructions.push(str_to_int(&s[1..]));
+            instructions.push(str_to_int(&s));
+        } else if is_string(&s) {
+            string_pool.extend(s[1..s.len() - 1].bytes());
+            string_pool.push(0);
+            let val = (0x00ffffff & (string_pool.len() as i32 - s.len() as i32).max(0) as u32)
+                | 0x80000000;
+            instructions.push(val);
         } else if is_label(&s) {
             if let Some(&addr) = label.get(&s) {
                 instructions.push(addr);
@@ -24,7 +31,7 @@ pub fn parse_token(str: Vec<String>) -> Vec<u32> {
             }
         }
     }
-    instructions
+    (instructions, string_pool)
 }
 
 fn map_to_optcode(str: &str) -> u32 {
@@ -80,20 +87,19 @@ fn map_to_optcode(str: &str) -> u32 {
 }
 
 fn is_integer(str: &str) -> bool {
-    if str.chars().nth(0).unwrap() == '#' {
-        return true;
-    }
-    false
+    str.starts_with('#') && str[1..].chars().all(|c| c.is_digit(10))
 }
 
-fn is_label(str: &str) -> bool {
-    if str.chars().nth(0).unwrap() == '_' {
-        return true;
-    }
-    false
+fn is_string(s: &str) -> bool {
+    s.starts_with("\"") && s.ends_with("\"")
+}
+
+fn is_label(s: &str) -> bool {
+    s.starts_with('_') && s[1..].chars().all(|c| c.is_alphanumeric() || c == '_')
 }
 
 fn str_to_int(str: &str) -> u32 {
-    str.parse::<u32>()
+    str[1..]
+        .parse::<u32>()
         .unwrap_or_else(|_| panic!("invalid integer formant"))
 }
