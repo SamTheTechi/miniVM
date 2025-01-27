@@ -1,13 +1,19 @@
 use std::collections::HashMap;
-use std::io;
+use std::{io, usize};
 
-const REG_CONST: u32 = 0x40000025;
+
+const REG_CONST: u32 = 0x400000a5;
+
+enum Regis {
+    Interger(i32),
+    String(u16),
+}
+
 pub struct VM {
     memory: Vec<u32>,
     stack: Vec<i32>,
     labels: HashMap<i32, i32>,
     heap: Vec<u8>,
-    // gernal purpose registers
     regis: Vec<i32>,
     typ: u32,
     dat: u32,
@@ -17,10 +23,12 @@ pub struct VM {
 }
 
 // headers
-// 0x0 -> positive   00
-// 0x4 -> optcode    01
-// 0x8 -> negative   10
-// 0xc -> label      11
+// 0x0 -> int 00    00
+//          positive 000
+//          negative 001
+// 0x4 -> optcode   01
+// 0x8 -> string    10
+// 0xc -> label     11
 //
 
 impl VM {
@@ -47,6 +55,10 @@ impl VM {
         instruction & 0x3fffffff
     }
 
+    fn int_positive(int: u32) -> bool {
+        (int & 0x20000000) == 0
+    }
+
     fn fetch(&mut self) {
         self.pc += 1;
     }
@@ -62,6 +74,7 @@ impl VM {
                 self.instruction_set();
             }
             0x3 => {}
+            0x2 => {}
             _ => {
                 self.rning = false;
             }
@@ -77,7 +90,21 @@ impl VM {
                 // mov
                 if self.memory.len() as i32 > (self.pc + 2) {
                     let destination = (self.memory[(self.pc + 1) as usize] - REG_CONST) as usize;
-                    self.regis[destination] = self.memory[(self.pc + 2) as usize] as i32;
+                    match Self::get_type(self.memory[(self.pc + 2) as usize]) {
+                        0x0 => {
+                            if Self::int_positive(self.memory[(self.pc) as usize + 2]) {
+                                self.regis[destination] =
+                                    self.memory[(self.pc + 2) as usize] as i32;
+                            } else {
+                                self.regis[destination] =
+                                    -(self.memory[(self.pc + 2) as usize] as i32 & 0x3ffffff);
+                            }
+                        }
+                        0x2 => {
+                            self.regis[destination] = 
+                        }
+                        _ => {}
+                    }
                     self.pc += 2;
                 }
             }
@@ -334,7 +361,7 @@ impl VM {
             self.execute();
         }
     }
-    pub fn load_program(&mut self, prog: Vec<u32>) {
+    pub fn load_program(&mut self, prog: Vec<u32>, string_pool: Vec<u8>) {
         for (i, &instruction) in prog.iter().enumerate() {
             if Self::get_type(instruction) == 3 {
                 self.labels
@@ -346,5 +373,6 @@ impl VM {
             }
             self.memory.push(instruction);
         }
+        self.heap.extend(string_pool);
     }
 }

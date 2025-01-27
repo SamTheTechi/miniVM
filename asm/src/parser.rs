@@ -1,3 +1,4 @@
+use asm::{is_integer, is_label, is_string, map_to_optcode, str_to_int};
 use std::collections::HashMap;
 
 pub fn parse_token(str: Vec<String>) -> (Vec<u32>, Vec<u8>) {
@@ -26,80 +27,10 @@ pub fn parse_token(str: Vec<String>) -> (Vec<u32>, Vec<u8>) {
             }
         } else {
             let instruction: u32 = map_to_optcode(&s);
-            if instruction != 0x4fffffff {
-                instructions.push(instruction);
+            if instruction != 0xff {
+                instructions.push(instruction | 0x40000000);
             }
         }
     }
     (instructions, string_pool)
-}
-
-fn map_to_optcode(str: &str) -> u32 {
-    match str {
-        "nop" => 0x40000000,
-        "mov" => 0x40000001,
-        "lod" => 0x40000002,
-        "str" => 0x40000003,
-        "jmp" => 0x40000004,
-        "jml" => 0x40000005,
-        "jmg" => 0x40000006,
-        "jme" => 0x40000007,
-        "jmz" => 0x40000008,
-        "cmp" => 0x40000009,
-        "clr" => 0x4000000a,
-        "cal" => 0x4000000b,
-        "ret" => 0x4000000c,
-        "swp" => 0x4000000d,
-        "out" => 0x4000000e,
-        "sin" => 0x4000000f,
-        "nli" => 0x40000010,
-        "psh" => 0x40000011,
-        "pop" => 0x40000012,
-        "pek" => 0x40000013,
-        "hlt" => 0x40000014,
-        "add" => 0x40000015,
-        "sub" => 0x40000016,
-        "mul" => 0x40000017,
-        "div" => 0x40000018,
-        "mod" => 0x40000019,
-        "inc" => 0x4000001a,
-        "dec" => 0x4000001b,
-        "sqt" => 0x4000001c,
-        "and" => 0x4000001d,
-        "sor" => 0x4000001e,
-        "xor" => 0x4000001f,
-        "not" => 0x40000020,
-        "shl" => 0x40000021,
-        "shr" => 0x40000022,
-        // register
-        "r0" => 0x40000025,
-        "r1" => 0x40000026,
-        "r2" => 0x40000027,
-        "r3" => 0x40000028,
-        "r4" => 0x40000029,
-        "r5" => 0x4000002a,
-        "r6" => 0x4000002b,
-        "r7" => 0x4000002c,
-        "rf" => 0x4000002d,
-        "rz" => 0x4000002e,
-        _ => 0x4fffffff,
-    }
-}
-
-fn is_integer(str: &str) -> bool {
-    str.starts_with('#') && str[1..].chars().all(|c| c.is_digit(10))
-}
-
-fn is_string(s: &str) -> bool {
-    s.starts_with("\"") && s.ends_with("\"")
-}
-
-fn is_label(s: &str) -> bool {
-    s.starts_with('_') && s[1..].chars().all(|c| c.is_alphanumeric() || c == '_')
-}
-
-fn str_to_int(str: &str) -> u32 {
-    str[1..]
-        .parse::<u32>()
-        .unwrap_or_else(|_| panic!("invalid integer formant"))
 }

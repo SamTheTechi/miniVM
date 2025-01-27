@@ -6,10 +6,10 @@ use std::env;
 use std::fs;
 use std::path;
 use std::process;
-use translater::translater;
 
 fn main() {
     let mut tokeniser = Lexer::new();
+
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         println!("cargo run <path.asm>");
@@ -24,17 +24,16 @@ fn main() {
             process::exit(1);
         }
     };
+
     let content = fs::read_to_string(&input_path).expect("Something went wrong");
     let token = tokeniser.lexer(content);
-    println!("{:?}", token);
     let (prog, heap) = parser::parse_token(token);
-    println!("{:?}", prog);
-    println!("{:?}", heap);
+
     match fs::File::create(&output_path) {
         Ok(_) => {}
         Err(e) => eprintln!("File to compilation {}:{}", output_path, e),
     }
-    let byte_data = translater(prog);
+    let byte_data = translater::into_binary(prog, heap);
 
     let _ = fs::write(output_path, byte_data);
 }

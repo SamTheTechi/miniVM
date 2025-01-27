@@ -1,7 +1,12 @@
-pub fn translater(prog: Vec<u32>) -> Vec<u8> {
-    let mut byte_data = Vec::new();
+pub fn into_binary(prog: Vec<u32>, heap: Vec<u8>) -> Vec<u8> {
+    let mut binary = Vec::new();
+    binary.extend_from_slice(&(prog.len() as u32).to_le_bytes());
     for &num in &prog {
-        byte_data.extend_from_slice(&num.to_ne_bytes());
+        binary.extend_from_slice(&num.to_le_bytes());
     }
-    byte_data
+    binary.extend_from_slice(&(heap.len() as u32).to_le_bytes());
+    for &chr in &heap {
+        binary.push(chr);
+    }
+    binary
 }
